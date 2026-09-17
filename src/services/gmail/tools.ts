@@ -226,5 +226,67 @@ export function buildGmailTools(
         }
       },
     },
+
+    {
+      name: "google_gmail_get_attachment",
+      label: "Get Gmail Attachment",
+      description:
+        "Download an email attachment by message ID and attachment ID (both are listed by google_gmail_read). Saves the file into the agent workspace under downloads/ and returns the saved path.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["messageId", "attachmentId", "filename"],
+        properties: {
+          messageId: {
+            type: "string",
+            description: "The Gmail message ID that contains the attachment.",
+          },
+          attachmentId: {
+            type: "string",
+            description: "The attachment ID (from google_gmail_read output).",
+          },
+          filename: {
+            type: "string",
+            description:
+              "Filename to save as (from google_gmail_read output). Sanitized to a safe basename.",
+          },
+        },
+      },
+      execute: async (_id, params) => {
+        try {
+          const MAX_BYTES = 25 * 1024 * 1024; // 25 MB cap
+          const client = await getGmailClient(config);
+          const messageId = String(params.messageId);
+          const attachmentId = String(params.attachmentId);
+          const filename = String(params.filename)
+            .split(/[/\\]/)
+            .pop()! // basename only — no path traversal
+            .replace(/[\x00-\x1f]/g, "")
+            .trim() || "attachment.bin";
+
+          const buf = await client.getAttachment(messageId, attachmentId);
+          if (buf.length > MAX_BYTES) {
+            return errorResult(
+              `Attachment too large: ${buf.length} bytes (max ${MAX_BYTES}).`,
+            );
+          }
+
+          const fs = await import("node:fs/promises");
+          const path = await import("node:path");
+          const os = await import("node:os");
+          const dir = path.join(os.homedir(), "downloads");
+          await fs.mkdir(dir, { recursive: true });
+          const filePath = path.join(dir, filename);
+          await fs.writeFile(filePath, buf);
+          return textResult(
+            `Attachment saved: ${filePath} (${buf.length} bytes, ${params.filename}).`,
+          );
+        } catch (error) {
+          return errorResult(
+            normalizeGoogleError(error, "Gmail", "get attachment"),
+          );
+        }
+      },
+    },
   ];
 }

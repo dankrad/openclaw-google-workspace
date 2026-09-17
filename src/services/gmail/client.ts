@@ -7,6 +7,13 @@ import { google } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
 import type { gmail_v1 } from "googleapis";
 
+export interface EmailAttachmentMeta {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface EmailMessage {
   id: string;
   threadId?: string;
@@ -18,11 +25,13 @@ export interface EmailMessage {
   snippet?: string;
   body?: string;
   labelIds?: string[];
+  attachments?: EmailAttachmentMeta[];
 }
 
 export interface GmailClient {
   searchMessages(query: string, maxResults: number): Promise<EmailMessage[]>;
   getMessage(messageId: string): Promise<EmailMessage>;
+  getAttachment(messageId: string, attachmentId: string): Promise<Buffer>;
   listUnread(maxResults: number): Promise<EmailMessage[]>;
   listByLabel(label: string, maxResults: number): Promise<EmailMessage[]>;
   sendEmail(params: {
@@ -79,6 +88,24 @@ function extractBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
   return "";
 }
 
+function extractAttachments(payload?: gmail_v1.Schema$MessagePart): EmailAttachmentMeta[] {
+  const out: EmailAttachmentMeta[] = [];
+  const walk = (part?: gmail_v1.Schema$MessagePart): void => {
+    if (!part) return;
+    if (part.filename && part.body?.attachmentId) {
+      out.push({
+        attachmentId: part.body.attachmentId,
+        filename: part.filename,
+        mimeType: part.mimeType ?? "application/octet-stream",
+        sizeBytes: part.body.size ?? 0,
+      });
+    }
+    for (const child of part.parts ?? []) walk(child);
+  };
+  walk(payload);
+  return out;
+}
+
 function messageToEmail(msg: gmail_v1.Schema$Message): EmailMessage {
   const headers = parseHeaders(msg.payload?.headers);
   return {
@@ -92,6 +119,7 @@ function messageToEmail(msg: gmail_v1.Schema$Message): EmailMessage {
     snippet: msg.snippet ?? undefined,
     body: extractBody(msg.payload),
     labelIds: msg.labelIds ?? undefined,
+    attachments: extractAttachments(msg.payload),
   };
 }
 
@@ -163,6 +191,15 @@ export function createGmailClient(auth: OAuth2Client): GmailClient {
         format: "full",
       });
       return messageToEmail(res.data);
+    },
+
+    async getAttachment(messageId, attachmentId) {
+      const res = await gmail.users.messages.attachments.get({
+        userId: "me",
+        messageId,
+        id: attachmentId,
+      });
+      return Buffer.from(res.data.data ?? "", "base64url");
     },
 
     async listUnread(maxResults) {

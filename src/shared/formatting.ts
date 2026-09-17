@@ -2,6 +2,8 @@
  * Output formatting helpers for tool results.
  */
 
+import type { EmailAttachmentMeta } from "../services/gmail/client.js";
+
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
   details: unknown;
@@ -26,6 +28,7 @@ export function formatEmailSummary(message: {
   date?: string;
   snippet?: string;
   body?: string;
+  attachments?: EmailAttachmentMeta[];
 }): string {
   const lines: string[] = [];
   lines.push(`**From:** ${message.from ?? "Unknown"}`);
@@ -39,6 +42,15 @@ export function formatEmailSummary(message: {
   } else if (message.snippet) {
     lines.push("");
     lines.push(message.snippet);
+  }
+  if (message.attachments?.length) {
+    lines.push("");
+    lines.push(`**Attachments (${message.attachments.length}):**`);
+    for (const a of message.attachments) {
+      lines.push(
+        `- ${a.filename} (${a.mimeType}, ${a.sizeBytes} bytes) — attachmentId: ${a.attachmentId}`,
+      );
+    }
   }
   return lines.join("\n");
 }
