@@ -231,7 +231,7 @@ export function buildGmailTools(
       name: "google_gmail_get_attachment",
       label: "Get Gmail Attachment",
       description:
-        "Download an email attachment by message ID and attachment ID (both are listed by google_gmail_read). Saves the file into the agent workspace under downloads/ and returns the saved path.",
+        "Download an email attachment by message ID and attachment ID (both are listed by google_gmail_read). Saves the file under the configured downloads directory and returns the saved path.",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -274,7 +274,9 @@ export function buildGmailTools(
           const fs = await import("node:fs/promises");
           const path = await import("node:path");
           const os = await import("node:os");
-          const dir = path.join(os.homedir(), "downloads");
+          const dir = path.resolve(
+            config.downloadsDir ?? path.join(os.homedir(), "downloads"),
+          );
           await fs.mkdir(dir, { recursive: true });
           const filePath = path.join(dir, filename);
           await fs.writeFile(filePath, buf);

@@ -45,7 +45,11 @@
         "type": "string",
         "minLength": 1
       },
-      "oauthRedirectUri": {
+      "downloadsDir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "oauthRedirectUri": {
         "type": "string",
         "minLength": 1
       },

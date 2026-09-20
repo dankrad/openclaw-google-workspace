@@ -57,6 +57,7 @@ export interface ServiceConfigMap {
 export interface WorkspacePluginConfig {
   credentialsPath?: string;
   tokenPath?: string;
+  downloadsDir?: string;
   oauthRedirectUri?: string;
   services?: {
     gmail?: Partial<GmailServiceConfig>;
@@ -71,6 +72,7 @@ export interface WorkspacePluginConfig {
 export interface ResolvedWorkspaceConfig {
   credentialsPath?: string;
   tokenPath?: string;
+  downloadsDir?: string;
   oauthRedirectUri?: string;
   services: ServiceConfigMap;
 }
@@ -135,6 +137,7 @@ export function resolvePluginConfig(api: {
       envString("GOOGLE_WORKSPACE_CREDENTIALS_PATH") ?? raw.credentialsPath,
     tokenPath:
       envString("GOOGLE_WORKSPACE_TOKEN_PATH") ?? raw.tokenPath,
+    downloadsDir: raw.downloadsDir,
     oauthRedirectUri:
       envString("GOOGLE_WORKSPACE_OAUTH_REDIRECT_URI") ?? raw.oauthRedirectUri,
     services: {
